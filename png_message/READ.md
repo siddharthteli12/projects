@@ -1,0 +1,5 @@
+- Commands
+    - Encode a message in png file.
+    - Decode the message stored in png file.
+    - Remove a message from a png file.
+    - Print chunks of png that can be searched for messages.
