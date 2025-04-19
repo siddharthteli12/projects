@@ -1,101 +1,72 @@
-use crate::Error;
-use std::{
-    fmt::{write, Display},
-    str::FromStr,
-};
+use std::fmt::Display;
 
-#[derive(PartialEq, Eq, Debug)]
+use crate::Error;
+
+#[derive(Eq, Debug, PartialEq)]
 pub struct ChunkType {
-    type_code: u32,
+    pub val: u32,
 }
 
 impl TryFrom<[u8; 4]> for ChunkType {
     type Error = Error;
     fn try_from(value: [u8; 4]) -> Result<Self, Self::Error> {
-        Ok(ChunkType {
-            type_code: u32::from_be_bytes(value),
+        Ok(Self {
+            val: u32::from_be_bytes(value),
         })
     }
 }
 
-impl FromStr for ChunkType {
+impl std::str::FromStr for ChunkType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes: [u8; 4] = s.as_bytes().try_into()?;
-
-        // Validate the bytes that they are alpha only.
-        for val in bytes {
-            if !val.is_ascii_alphabetic() {
-                return Err(Error::from("Only alphas are allowed"));
+        // COnfirming that all values are alpha values.
+        for c in s.chars() {
+            if !c.is_alphabetic() {
+                return Err(Error::from("Not allowed to have a non alpha value here"));
             }
         }
-
-        println!("{:?}", bytes);
-        let result = ChunkType {
-            type_code: u32::from_be_bytes(bytes),
-        };
-        println!("{:?}", result);
-        Ok(result)
+        Ok(Self {
+            val: u32::from_be_bytes(s.as_bytes().try_into()?),
+        })
     }
 }
 
 impl Display for ChunkType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let output = self.type_code.to_be_bytes();
-        write!(f, "{}", String::from_utf8(output.into()).unwrap())
+        let str = &self.bytes();
+        let str = String::from_utf8_lossy(str);
+        write!(f, "{}", str)
     }
 }
 
 impl ChunkType {
-    fn bytes(&self) -> [u8; 4] {
-        self.type_code.to_be_bytes()
+    pub fn bytes(&self) -> [u8; 4] {
+        u32::to_be_bytes(self.val)
     }
 
+    // `Note` - Not sure if this is correct.
     fn is_valid(&self) -> bool {
-        let asci_bytes = self.bytes();
-        println!("{:?}", asci_bytes);
-        // Validate for each char
-        for val in asci_bytes {
-            if !val.is_ascii_alphabetic() {
-                return false;
-            }
-        }
-
-        // Validate third char is uppercase.
         self.is_reserved_bit_valid()
     }
-
     fn is_critical(&self) -> bool {
-        if self.bytes()[0].is_ascii_uppercase() {
-            true
-        } else {
-            false
-        }
+        is_uppecase(self.bytes()[0])
     }
-
     fn is_public(&self) -> bool {
-        if self.bytes()[1].is_ascii_uppercase() {
-            true
-        } else {
-            false
-        }
+        is_uppecase(self.bytes()[1])
     }
-
     fn is_reserved_bit_valid(&self) -> bool {
-        if self.bytes()[2].is_ascii_uppercase() {
-            true
-        } else {
-            false
-        }
+        is_uppecase(self.bytes()[2])
     }
-
     fn is_safe_to_copy(&self) -> bool {
-        if self.bytes()[3].is_ascii_lowercase() {
-            true
-        } else {
-            false
-        }
+        !is_uppecase(self.bytes()[3])
     }
+}
+
+const UPPERCASE_INDEX: u8 = 5;
+// Helper method to get any bit value from a `u8`.
+// If 5th bit is 0 value is uppercase if its not value is lowercase.
+pub fn is_uppecase(value: u8) -> bool {
+    (value >> UPPERCASE_INDEX) & 1 == 0
 }
 
 #[cfg(test)]
